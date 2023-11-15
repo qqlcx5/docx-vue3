@@ -1,4 +1,7 @@
 import { saveAs } from 'file-saver';
+import mammoth from 'mammoth';
+import { asBlob } from 'html-docx-js-typescript'
+
 
 export const splitIntoTopics = (text) => {
     // 假设每个议题都以"议题"开头，并且有一个明确的结束标记
@@ -18,14 +21,31 @@ export const createWordDocument = (topicText, index) => {
     saveAs(blob, `Topic_${index}.docx`);
 };
 
-// const splitIntoTopics = (text) => {
-//     // 这里需要实现一个函数，根据你的文档结构来分割文本
-//     // 返回一个包含每个议题文本的数组
-// };
 
-// const createWordDocument = (topicText, index) => {
-//     // 这里需要实现一个函数，用于创建Word文档
-//     // 并使用file-saver保存文件
-//     const blob = new Blob([topicText], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
-//     saveAs(blob, `Topic_${index}.docx`);
-// };
+
+// 解析Word文档并按议题分割
+export async function parseAndSplitDocument(file) {
+  // 使用mammoth.js将Word文档转换为HTML
+  const arrayBuffer = await file.arrayBuffer();
+  const result = await mammoth.convertToHtml({ arrayBuffer });
+  const html = result.value;
+
+  // 使用正则表达式来分割议题和提取头部和尾部
+  const header = html.match(/(.*)(?=议题一)/s)[0];
+  const footer = html.match(/(议题三：.*)(?=<\/html>)/s)[0];
+  const topics = html.split(/(议题一：.*?)(?=议题二：)|(议题二：.*?)(?=议题三：)|(议题三：.*?)(?=<\/html>)/s).filter(Boolean);
+
+  return {
+    header,
+    footer,
+    topics,
+  };
+}
+
+// 将HTML转换为docx格式
+export function convertHtmlToDocxElements(html) {
+  // 使用html-to-docx库将HTML转换为docx格式
+  console.log( 'buffer', html);
+  const buffer = asBlob(html);
+  return buffer;
+}
