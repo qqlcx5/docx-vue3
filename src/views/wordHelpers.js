@@ -1,6 +1,7 @@
 import { saveAs } from 'file-saver';
 import mammoth from 'mammoth';
-import { asBlob } from 'html-docx-js-typescript'
+import { asBlob } from 'html-docx-js-typescript';
+import { Document, Packer, Paragraph } from 'docx';
 
 
 export const splitIntoTopics = (text) => {
@@ -24,28 +25,63 @@ export const createWordDocument = (topicText, index) => {
 
 
 // 解析Word文档并按议题分割
+// 这里应该是解析Word内容并按议题分割的逻辑
+// 同时提取头部和尾部
+// 返回一个对象，包含头部、尾部和分割后的议题内容
 export async function parseAndSplitDocument(file) {
-  // 使用mammoth.js将Word文档转换为HTML
-  const arrayBuffer = await file.arrayBuffer();
-  const result = await mammoth.convertToHtml({ arrayBuffer });
-  const html = result.value;
+    // 使用mammoth.js将Word文档转换为HTML
+    const arrayBuffer = await file.arrayBuffer();
+    // 自定义样式映射
+    const result = await mammoth.convertToHtml({ arrayBuffer });
+    const html = result.value;
 
-  // 使用正则表达式来分割议题和提取头部和尾部
-  const header = html.match(/(.*)(?=议题一)/s)[0];
-  const footer = html.match(/(议题三：.*)(?=<\/html>)/s)[0];
-  const topics = html.split(/(议题一：.*?)(?=议题二：)|(议题二：.*?)(?=议题三：)|(议题三：.*?)(?=<\/html>)/s).filter(Boolean);
+    // 使用DOM解析器来处理HTML，这比正则表达式更可靠
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
 
-  return {
-    header,
-    footer,
-    topics,
-  };
+    // 提取头部信息
+    const header = doc.querySelector('table').outerHTML;
+
+    // 提取尾部信息
+    const footerHtml = doc.body.innerHTML;
+    const footerIndex = footerHtml.lastIndexOf('<p><strong>议题');
+    const footer = footerHtml.substring(footerIndex);
+
+    // 提取议题
+    const topics = [];
+    const topicElements = doc.querySelectorAll('p > strong');
+    topicElements.forEach((topic) => {
+        // 检查是否是议题的开始
+        if (topic.textContent.startsWith('议题')) {
+            // 获取议题文本内容直到下一个议题的开始或文档结束
+            let topicContent = '';
+            let nextSibling = topic.parentElement.nextElementSibling;
+            while (nextSibling && !nextSibling.querySelector('strong')) {
+                topicContent += nextSibling.outerHTML;
+                nextSibling = nextSibling.nextElementSibling;
+            }
+            topics.push(topic.parentElement.outerHTML + topicContent);
+        }
+    });
+
+    return {
+        header,
+        footer,
+        topics,
+    };
 }
 
+
 // 将HTML转换为docx格式
+// 这里应该是将HTML转换为docx的Paragraphs和其他结构的逻辑
+// 这个例子只是简单地创建了一个段落
 export function convertHtmlToDocxElements(html) {
-  // 使用html-to-docx库将HTML转换为docx格式
-  console.log( 'buffer', html);
-  const buffer = asBlob(html);
-  return buffer;
+    // 使用html-to-docx库将HTML转换为docx格式
+    const doc = new Document();
+    const paragraphs = html.split('\n').map(text => new Paragraph(text));
+    doc.addSection({ children: paragraphs });
+
+    Packer.toBlob(doc).then(blob => {
+      saveAs(blob, 'example.docx');
+    });
 }
