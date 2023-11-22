@@ -1,33 +1,53 @@
 <template>
     <div>
-        <input type="file" @change="handleFileUpload" />
-        <button v-for="(content, index) in splitContents" :key="index" @click="downloadDoc(content, index)">
-            下载议题 {{ index + 1 }}
-        </button>
+        <input type="file" @change="onFileChange" />
     </div>
 </template>
 
 <script setup>
-const fs = require('fs');
-const PizZip = require('pizzip');
-const Docxtemplater = require('docxtemplater');
+import PizZip from 'pizzip';
+import Docxtemplater from 'docxtemplater';
+import { saveAs } from 'file-saver';
+const onFileChange = async (event) => {
+    const files = event.target.files;
+    if (files.length === 0) return;
 
-const content = fs.readFileSync('path_to_your_document.docx', 'binary');
-const zip = new PizZip(content);
-const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
+    const file = files[0];
+    console.log(`🚀 - onFileChange - file:`, file);
+    const content = await file.arrayBuffer();
+    console.log(`🚀 - onFileChange - content:`, content);
 
+    // 使用PizZip加载文档内容
+    const zip = new PizZip(content);
+    const doc = new Docxtemplater(zip, {
+        paragraphLoop: true,
+        linebreaks: true,
+    });
 
-// 假设你已经有了一个议题内容的数组
-const topics = ['topic1', 'topic2', 'topic3', 'topic4'];
+    // 获取文档中的所有段落
+    const paragraphs = doc.getFullText().split(/\n|\r\n/);
 
-topics.forEach((topicContent, index) => {
-  const newDoc = new Docxtemplater(new PizZip(), { paragraphLoop: true, linebreaks: true });
-  // 这里你需要添加逻辑来保持头部和尾部的样式，并插入议题内容
-  // ...
+    // 分割文档并保存
+    paragraphs.forEach((paragraph, index) => {
+        // 创建新的文档并添加内容
+        const newZip = new PizZip();
+        const newDoc = new Docxtemplater(newZip, {
+            paragraphLoop: true,
+            linebreaks: true,
+        });
 
-  // 保存新文档
-  const buf = newDoc.getZip().generate({ type: 'nodebuffer' });
-  fs.writeFileSync(`topic_${index + 1}.docx`, buf);
-});
+        // 渲染新文档
+        newDoc.render();
+
+        // 生成新的文档blob并保存
+        const out = newDoc.getZip().generate({
+            type: 'blob',
+            mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        });
+
+        // 使用file-saver保存文件
+        saveAs(out, `议题${index + 1}.docx`);
+    });
+}
 
 </script>

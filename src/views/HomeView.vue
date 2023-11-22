@@ -6,7 +6,8 @@
             <button @click="change('wordPage3')">wordPage3</button>
             <button @click="change('wordPage4')">wordPage4</button>
         </div>
-        <div v-if="showWordPage">
+        <div>
+            {{ showWordPage }}
             <wordPage1 v-if="showWordPage === 'wordPage1'" />
             <wordPage2 v-if="showWordPage === 'wordPage2'" />
             <wordPage3 v-if="showWordPage === 'wordPage3'" />
@@ -21,7 +22,7 @@ import wordPage1 from './HomeView.1.vue';
 import wordPage2 from './HomeView.2.vue';
 import wordPage3 from './HomeView.3.vue';
 import wordPage4 from './HomeView.4.vue';
-const showWordPage = ref('wordPage1');
+const showWordPage = ref('wordPage4');
 const change = (value) => {
     showWordPage.value = value
 };
